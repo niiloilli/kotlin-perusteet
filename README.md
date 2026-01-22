@@ -12,3 +12,9 @@ sortByDueDate
 
 ## UI
 HomeScreen näyttää otsikon ja tehtävälistan
+
+# Viikkotehtävä 2
+
+## Compose-tilanhallinta
+Jetpack Compose on Googlen moderni deklaratiivinen käyttöliittymäkirjasto Android-sovelluksille, jossa käyttöliittymä kuvataan aina nykyisen tilan perusteella.
+UI reagoi aina automaattisesti tilan muutoksiin, eikä näkymää tarvitse päivittää käsin.
