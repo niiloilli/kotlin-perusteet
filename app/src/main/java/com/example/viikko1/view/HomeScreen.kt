@@ -1,4 +1,4 @@
-package com.example.viikko1
+package com.example.viikko1.view
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -8,16 +8,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.viikko1.domain.Task
+import com.example.viikko1.model.Task
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Color
+import com.example.viikko1.viewmodel.TaskViewModel
 
 @Composable
 fun HomeScreen(
     viewModel: TaskViewModel,
     modifier: Modifier = Modifier
 ) {
+    val tasks by viewModel.tasks.collectAsState()
+
     var newTitle by remember { mutableStateOf("") }
+    var selectedTask by remember { mutableStateOf<Task?>(null) }
 
     Column(
         modifier = modifier
@@ -61,7 +65,7 @@ fun HomeScreen(
             Button(onClick = {
                 val title = newTitle.trim()
                 if (title.isNotEmpty()) {
-                    val nextId = (viewModel.tasks.maxOfOrNull { it.id } ?: 0) + 1
+                    val nextId = (tasks.maxOfOrNull { it.id } ?: 0) + 1
                     viewModel.addTask(
                         Task(
                             id = nextId,
@@ -126,14 +130,30 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(viewModel.tasks, key = { it.id }) { task ->
+            items( tasks, key = { it.id }) { task ->
                 TaskRow(
                     task = task,
                     onToggle = { viewModel.toggleDone(task.id) },
-                    onRemove = { viewModel.removeTask(task.id) }
+                    onRemove = { viewModel.removeTask(task.id) },
+                    onDetails = { selectedTask = task }
                 )
             }
         }
+    }
+
+    if (selectedTask != null) {
+        DetailScreen(
+            task = selectedTask!!,
+            onDismiss = { selectedTask = null },
+            onSave = { updated ->
+                viewModel.updateTask(updated)
+                selectedTask = null
+            },
+            onDelete = { id ->
+                viewModel.removeTask(id)
+                selectedTask = null
+            }
+        )
     }
 }
 
@@ -141,31 +161,63 @@ fun HomeScreen(
 private fun TaskRow(
     task: Task,
     onToggle: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onDetails: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(task.title, style = MaterialTheme.typography.titleMedium)
-                Text(task.description, style = MaterialTheme.typography.bodySmall)
-                Text("Due: ${task.dueDate} | Priority: ${task.priority}", style = MaterialTheme.typography.bodySmall)
-            }
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-            Spacer(Modifier.width(8.dp))
+                Text(
+                    text = task.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-            Button(onClick = onToggle) {
-                Text(if (task.done) "Undo" else "Done")
-            }
+                Text(
+                    text = "Due: ${task.dueDate} | Priority: ${task.priority}",
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-            Spacer(Modifier.width(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = onToggle,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (task.done) "Undo" else "Done", maxLines = 1)
+                    }
 
-            TextButton(onClick = onRemove) {
-                Text("Remove")
+                    OutlinedButton(
+                        onClick = onDetails,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Details", maxLines = 1)
+                    }
+
+                    TextButton(
+                        onClick = onRemove,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Remove", maxLines = 1)
+                    }
+                }
             }
         }
     }
