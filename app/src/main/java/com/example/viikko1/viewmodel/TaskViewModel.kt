@@ -10,38 +10,50 @@ import kotlinx.coroutines.flow.asStateFlow
 
 class TaskViewModel : ViewModel() {
 
-    private var allTasks: List<Task> = emptyList()
-
     private val _tasks = MutableStateFlow<List<Task>>(emptyList())
-    val tasks: StateFlow<List<Task>> = _tasks.asStateFlow()
+    val tasks: StateFlow<List<Task>> = _tasks
+
+    private val allTasks = mutableListOf<Task>()
+
+    private val _selectedTask = MutableStateFlow<Task?>(null)
+    val selectedTask: StateFlow<Task?> = _selectedTask
+
+    val addTaskDialogVisible = MutableStateFlow<Boolean>(false)
+
+    val detailDialogVisible = MutableStateFlow(false)
 
     init {
-        allTasks = mockTasks
-        _tasks.value = allTasks
+        allTasks.addAll(mockTasks)
+        _tasks.value = allTasks.toList()
     }
 
+    fun openTask(id: Int) {
+        val task = _tasks.value.find { it.id == id }
+        _selectedTask.value = task
+    }
     fun addTask(task: Task) {
-        allTasks = allTasks + task
-        _tasks.value = allTasks
+        allTasks.add(task)
+        _tasks.value += task
+        addTaskDialogVisible.value = false
     }
 
     fun toggleDone(id: Int) {
-        allTasks = allTasks.map {
-            if (it.id == id) it.copy(done=!it.done) else it
+        allTasks.replaceAll {
+            if (it.id == id) it.copy(done = !it.done) else it
         }
-        _tasks.value=allTasks
+        _tasks.value = allTasks.toList()
     }
 
     fun removeTask(id: Int) {
-        allTasks = allTasks.filterNot { it.id == id }
-        _tasks.value = allTasks
+        allTasks.removeAll { it.id == id }
+        _tasks.value = allTasks.toList()
     }
 
     fun updateTask(updated: Task) {
-        allTasks = allTasks.map { t ->
-            if (t.id == updated.id) updated else t
+        allTasks.replaceAll {
+            if (it.id == updated.id) updated else it
         }
-        _tasks.value = allTasks
+        _tasks.value = allTasks.toList()
     }
 
     fun filterByDone(done: Boolean) {
@@ -49,10 +61,14 @@ class TaskViewModel : ViewModel() {
     }
 
     fun sortByDueDate() {
-        _tasks.value = _tasks.value.sortedBy { it.dueDate }
+        _tasks.value = allTasks.sortedBy { it.dueDate }
     }
 
+    fun closeDialog() {
+        _selectedTask.value = null
+        }
+
     fun showAll() {
-        _tasks.value = allTasks
+        _tasks.value = allTasks.toList()
     }
 }

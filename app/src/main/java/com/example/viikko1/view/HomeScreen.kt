@@ -3,6 +3,8 @@ package com.example.viikko1.view
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,27 +12,45 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.viikko1.model.Task
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
 import com.example.viikko1.viewmodel.TaskViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: TaskViewModel,
+    onTaskClick: (Int) -> Unit,
+    onAddClick: () -> Unit = {},
+    onNavigateCalendar: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val tasks by viewModel.tasks.collectAsState()
 
     var newTitle by remember { mutableStateOf("") }
-    var selectedTask by remember { mutableStateOf<Task?>(null) }
+    val selectedTask by viewModel.selectedTask.collectAsState()
+    val addTaskFlag by viewModel.addTaskDialogVisible.collectAsState()
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
+            .padding(top = 36.dp)
     ) {
         Text(
             text = "My Tasks",
             style = MaterialTheme.typography.headlineMedium
+        )
+
+        TopAppBar(
+            title = { Text("My Tasks") },
+            actions = {
+                IconButton(onClick = onNavigateCalendar) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = "Calendar"
+                    )
+                }
+            }
         )
 
         Spacer(Modifier.height(12.dp))
@@ -40,46 +60,11 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedTextField(
-                value = newTitle,
-                onValueChange = { newTitle = it },
-                placeholder = {
-                    Text(
-                        text = "Title for new task",
-                        color = Color.Black
-                    )
-                },
-                textStyle = LocalTextStyle.current.copy(color = Color.Black),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedPlaceholderColor = Color.Black,
-                    unfocusedPlaceholderColor = Color.Black,
-                    focusedLabelColor = Color.Black,
-                    unfocusedLabelColor = Color.Black,
-                    cursorColor = Color.Black
-                ),
-                modifier = Modifier.weight(1f)
-            )
-
-            Button(onClick = {
-                val title = newTitle.trim()
-                if (title.isNotEmpty()) {
-                    val nextId = (tasks.maxOfOrNull { it.id } ?: 0) + 1
-                    viewModel.addTask(
-                        Task(
-                            id = nextId,
-                            title = title,
-                            description = "Created from UI",
-                            priority = 2,
-                            dueDate = "2026-01-20",
-                            done = false
-                        )
-                    )
-                    newTitle = ""
-                }
-            }) {
-                Text("Add")
+            Button(
+                onClick = onAddClick,
+                modifier = Modifier.padding(8.dp),
+            ) {
+                Text("Add Task")
             }
         }
 
@@ -135,24 +120,31 @@ fun HomeScreen(
                     task = task,
                     onToggle = { viewModel.toggleDone(task.id) },
                     onRemove = { viewModel.removeTask(task.id) },
-                    onDetails = { selectedTask = task }
+                    onDetails = { onTaskClick(task.id) }
                 )
             }
         }
     }
 
     if (selectedTask != null) {
-        DetailScreen(
+        DetailDialog(
             task = selectedTask!!,
-            onDismiss = { selectedTask = null },
+            onDismiss = { viewModel.closeDialog() },
             onSave = { updated ->
                 viewModel.updateTask(updated)
-                selectedTask = null
+                viewModel.closeDialog()
             },
-            onDelete = { id ->
-                viewModel.removeTask(id)
-                selectedTask = null
+            onDelete = {
+                viewModel.removeTask(it)
+                viewModel.closeDialog()
             }
+        )
+    }
+
+    if (addTaskFlag) {
+        AddDialog(
+            onClose = { viewModel.addTaskDialogVisible.value = false },
+            onSave = { viewModel.addTask(it) }
         )
     }
 }
@@ -193,32 +185,59 @@ private fun TaskRow(
                 )
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
                         onClick = onToggle,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (task.done) "Undo" else "Done", maxLines = 1)
-                    }
+                            Text(
+                                if (task.done) "Undo" else "Done",
+                                softWrap = false,
+                                modifier = Modifier.fillMaxWidth(),
+                                overflow = TextOverflow.Visible,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                            )
+                        }
 
-                    OutlinedButton(
-                        onClick = onDetails,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Details", maxLines = 1)
-                    }
+                        OutlinedButton(
+                            onClick = onDetails,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                                Text(
+                                    "Edit",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Visible,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
 
-                    TextButton(
-                        onClick = onRemove,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Remove", maxLines = 1)
+                            TextButton(
+                                onClick = onRemove,
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .widthIn(min = 100.dp)
+                            ) {
+                                Text(
+                                    "Remove",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Visible,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                            Checkbox(
+                                checked = task.done,
+                                onCheckedChange = { onToggle() }
+                            )
+                        }
                     }
                 }
             }
         }
-    }
-}
+
